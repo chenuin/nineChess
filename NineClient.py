@@ -2,7 +2,7 @@ import pygame
 import socket
 import threading
 from queue import Queue
-import sys
+import sys,os
 import string
 from pygame.locals import *
 
@@ -20,8 +20,8 @@ class Chessboard:
 		self.winner = None
 		self.judge_win=0
 		self.piece = 'b'
-		self.black = 12
-		self.white = 12
+		self.black = 0
+		self.white = 0
 		self.grid = []
 		self.restart_game()
 		
@@ -30,42 +30,139 @@ class Chessboard:
 		self.winner = None
 		self.judge_win=0
 		self.piece = 'b'
-		self.black = 12
-		self.white = 12
+		self.black = 0
+		self.white = 0
 		
 		self.grid = []
 		for i in range(self.grid_round):
 			self.grid.append(list("." * self.grid_count))
 		
-		for i in range(self.grid_round):
-			print ("->")
-			for j in range(self.grid_count):
-				print ("a"+ self.grid[i][j] + "~")
-			print ("\n")
+		self.printboard()
 		# 可下子的位置 3x8 array
 		self.grid_location = [[(60,60), (60, 350), (60, 640), (350, 640), (640, 640), (640, 350), (640, 60), (350, 60)], [(140, 140), (140, 350), (140, 560), (350, 560), (560, 560), (560, 350), (560, 140), (350, 140)], [(220, 220), (220, 350), (220, 480), (350, 480), (480, 480), (480, 350), (480, 220), (350, 220)]]
 		
 	def is_my_turn(self, my_piece):
 		return my_piece == self.piece
+	
+	def can_move(self,my_piece):
+		move=0
+		number = 0
+		self.printboard()
+		for i in range(self.grid_round):
+			for j in range(self.grid_count):
+				#now = move
+				if self.grid[i][j] == my_piece:
+					number = number + 1
+				else:
+					continue
+				if self.grid[i][(j+1)%8]=='.' or self.grid[i][(j+7)%8]=='.':
+						move = move +1
+				if j%2==1:
+					if i==0:
+						if self.grid[i+1][j]=='.' :	
+							move = move +1
+					if i==1:
+						if self.grid[i+1][j]=='.'  or self.grid[i-1][j]=='.' :	
+							move = move +1
+					if i==2:
+						if self.grid[i-1][j]=='.' :	
+							move = move +1
+					#if move>now:
+						#print("piece:{},{},{}".format(my_piece,i,j))
+		#print("piece:{},move step:{}".format(my_piece,move))
+		
+		return (move,number)
+	
+	def judge_move(self, rp, rc, r, c):
+		
+		if rp == r :
+			if c == (rc+1)%8:
+				if self.grid[r][c]=='.':
+					return True
+			elif c == (rc+7)%8:
+				if self.grid[r][c]=='.':
+					return True
+		elif rc == c:
+			if rc%2 == 0:
+				return False
+			else:
+				if rp ==0 or rp ==2:
+					if r==1 and self.grid[r][c]=='.':
+						return True
+					else:
+						return False
+				elif rp ==1:
+					if r==2 and self.grid[r][c]=='.':
+						return True
+					elif r==0 and self.grid[r][c]=='.':
+						return True
+					else:
+						return False
+		else:
+			return False
+		
+		
+		
+		if self.grid[r][(c+1)%8]=='.' or self.grid[r][(c+7)%8]=='.':
+				return True
+		if c%2==1:
+			if r==0:
+				if self.grid[r+1][c]=='.' :	
+					return True
+			if r==1:
+				if self.grid[r+1][c]=='.'  or self.grid[r-1][c]=='.' :	
+					return True
+			if r==2:
+				if self.grid[r-1][c]=='.' :	
+					return True
+		return False
+		
+	def is_win(self):
+		move_b,num_b = self.can_move('b')
+		move_w,num_w = self.can_move('w')
+		
+		win_b = True
+		win_w = True
+		if move_b ==0  or num_b<=2:
+			print("black lose")
+			win_b = False
+		if move_w ==0 or num_w<=2:
+			print("white lose")
+			win_w =False
 
+		
+		
 	def set_piece(self, r, c):
+
+		for i in range(self.grid_round):
+			for j in range(self.grid_count):
+				if self.grid[i][j] == 'r':
+					self.grid[i][j] = '.'
+	
 		if self.can_set_piece(r, c):
 			self.grid[r][c] = self.piece			
+			if self.piece == 'b':
+				self.black = self.black+1
+			else:
+				self.white = self.white+1
 			return True
 		return False
 		
-	def take_other_piece(self, r, c):
-		if self.grid[r][c]==self.piece:
-			self.grid[r][c] = '.'
-			return True
+	def take_other_piece(self, r, c, my_piece):
+		if my_piece == self.piece:
+			if self.grid[r][c]!=self.piece:
+				self.grid[r][c] = '.'
+				return True
+		else:
+			if self.grid[r][c]==my_piece:
+				self.grid[r][c] = '.'
+				return True
 			
 	def turn_piece_color(self):
 		# 轉換棋子顏色
 		if self.piece == 'b':
-			self.black = self.black-1
 			self.piece = 'w'
 		else:
-			self.white = self.white-1
 			self.piece = 'b'
 
 	def can_set_piece(self, r, c):
@@ -75,31 +172,63 @@ class Chessboard:
 				return False
 			elif (r==-1) and (c==-1):
 				return False
-			
-			if self.piece == 'b':
-				self.black = self.black-1
-			else:
-				self.white = self.white-1
-			
 			return self.grid[r][c] == '.'
 		except IndexError:
 			return False
-		
-	def can_get_piece(self, r, c):
-		"""檢查是否能提子"""
+
+	def num_of_piece(self):
+		#print("num:b{},w{}".format(self.black,self.white))
 		if self.piece == 'b':
-			if self.grid[r][c] == 'w':
-				self.grid[r][c] = '.'
-				return True
+			if self.black >= 6:
+				return False
+		elif self.piece == 'w':
+			if self.white >= 6:
+				return False
+		return True
+			
+	def choose_piece(self, r, c):
+		if self.grid[r][c]==self.piece:
+			self.grid[r][c] = 'r'
+			return True
+		return False
+	
+	def move_piece(self, r, c):
+		if self.can_set_piece(r,c):
+			return True
+		return False
+			
+	def reset_color(self):
+		for i in range(self.grid_round):
+			for j in range(self.grid_count):
+				if self.grid[i][j] == 'r':
+					self.grid[i][j] = self.piece
+			
+	def can_get_piece(self, r, c, my_piece):
+		"""檢查是否能提子"""
+		if my_piece == self.piece:
+			if self.piece == 'b':
+				if self.grid[r][c] == 'w':
+					self.grid[r][c] = '.'
+					return True
+			else:
+				if self.grid[r][c] == 'b':
+					self.grid[r][c] = '.'
+					return True
 		else:
-			if self.grid[r][c] == 'b':
-				self.grid[r][c] = '.'
-				return True
+			if self.piece == 'b':
+				if self.grid[r][c] == 'b':
+					self.grid[r][c] = '.'
+					return True
+			else:
+				if self.grid[r][c] == 'w':
+					self.grid[r][c] = '.'
+					return True
 			
 	def get_three_count(self, r, c):
 		# 三層連一條
-		if self.grid[0][c]==self.piece and self.grid[1][c]==self.piece and self.grid[2][c]==self.piece:
-			return True
+		if (c %2 )==1:
+			if self.grid[0][c]==self.piece and self.grid[1][c]==self.piece and self.grid[2][c]==self.piece:
+				return True
 		# 同層相連	
 		if c==1 or c==3 or c==5 or c==7:
 			if self.grid[r][c]==self.piece and self.grid[r][(c+1)%8]==self.piece and self.grid[r][c-1]==self.piece:
@@ -111,7 +240,12 @@ class Chessboard:
 				return True
 		
 		return False
+	
+	def printboard(self):
+		for j in range(self.grid_count):
+			print (self.grid[0][j] + "\t" + self.grid[1][j]  + "\t" + self.grid[2][j])
 
+		
 		
 class ChessboardClient(Chessboard):
 
@@ -171,6 +305,8 @@ class ChessboardClient(Chessboard):
 				if piece != '.':
 					if piece == 'b':
 						color = (0, 0, 0)
+					elif piece == 'r':
+						color = (255,0,0)
 					else:
 						color = (255, 255, 255)
 
@@ -203,19 +339,23 @@ class GomokuClient:
 	def __init__(self):
 		pygame.init()
 
-		self.screen = pygame.display.set_mode((700, 760))
+		self.screen = pygame.display.set_mode((700, 800))
 		pygame.display.set_caption("雙人連線九子棋")
 		self.clock = pygame.time.Clock()
-		self.font = pygame.font.SysFont('Calibri', 25, True, False)
+		self.font = pygame.font.SysFont('Consolas', 45, True, False)
 		self.going = True
 		self.flag = 0
-		self.word = ''
+		self.flag_move = 0
 		self.piece = 'wait'
+		self.word = ''
+		
+		self.rp = -1
+		self.rc = -1
 
 		self.chessboard = ChessboardClient()
 
 		s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-		s.connect(('127.0.0.1', 22004))
+		s.connect(('127.0.0.1', 26100))
 		self.csocket = s
 
 		s.send(str.encode('join_game'))
@@ -235,45 +375,65 @@ class GomokuClient:
 			self.update()
 			self.draw()
 			self.clock.tick(60)
-
 		pygame.display.quit() 
 		pygame.quit()
+		
 		try:
 			sys.exit() # this always raises SystemExit
 		except SystemExit as e :
 			print(e)
 		except:
 			print("Something went horribly wrong") # some other exception got raised
-			
+		os._exit(0)
 			
 	def update(self):
-		current_string = []
+		
 		for e in pygame.event.get():
-			#print(e.type)
 			if e.type == pygame.QUIT:
 				self.going = False
 			elif e.type == pygame.MOUSEBUTTONDOWN:
-				#self.handle_MOUSEBUTTONDOWN(e)
+				#self.handle_MOUSEBUTTONDOWN(e, self.flag)
+				
 				if self.status == 'gaming':
 					if not self.chessboard.is_in_area(e.pos[0], e.pos[1]):
-						return
+						continue
 					if not self.chessboard.is_my_turn(self.piece):
-						return
-					print(e.pos[0],e.pos[1])
+						continue
+
 					r, c = self.chessboard.get_r_c(e.pos[0], e.pos[1])
-					
-					# 判斷可不可以下子
-					if self.flag == 0:
-						if not self.chessboard.can_set_piece(r, c):
-							return
-						# 送出封包
-						send_queue.put('3{0},{1}'.format(r, c))
+					if self.chessboard.num_of_piece():
+						# 判斷可不可以下子
+						if self.flag == 0:
+							if not self.chessboard.can_set_piece(r, c):
+								continue
+							send_queue.put('3{0},{1}'.format(r, c))
+							
+						else:
+							if not self.chessboard.can_get_piece(r, c, self.piece):
+								continue
+							send_queue.put('4{0},{1}'.format(r, c))
 						
-					else:
-						if not self.chessboard.can_get_piece(r, c):
-							return
-						# 送出封包
+					elif self.flag_move==0 and  self.flag==1:
+						if not self.chessboard.can_get_piece(r, c, self.piece):
+							continue
 						send_queue.put('4{0},{1}'.format(r, c))
+					else:
+						# 開始移動旗子
+						if self.flag_move ==0:
+							self.chessboard.reset_color()
+							if self.chessboard.choose_piece(r, c):
+								send_queue.put('5{0},{1}'.format(r, c))
+								self.rp = r
+								self.rc = c
+								self.flag_move = 1
+						else:
+							if self.chessboard.judge_move( self.rp,  self.rc, r , c):
+								if self.chessboard.move_piece(r, c):
+									send_queue.put('3{0},{1}'.format(r, c))
+									self.flag_move = 0
+							else:
+								print ("can.t move")
+								self.flag_move = 0
 			elif e.type == KEYUP:
 				
 				if e.key == 13:
@@ -284,35 +444,13 @@ class GomokuClient:
 					self.word = ''
 				else:
 					self.word = self.word + str(chr(e.key))
-					
-				#self.screen.blit(self.font.render('1111', True, (0, 0, 0)), (10, 600))
-				
-			#elif e.type == KEYDOWN:
-			#	print (e.key)
-			#	print (e.mod)
-				
-		'''
-		event = pygame.event.poll()
-		if event.type == KEYDOWN:
-		return event.key		
-		
-		if (inkey = get_key())!='':
-			if inkey == K_BACKSPACE:
-				current_string = current_string[0:-1]
-			#elif inkey == K_RETURN:
-				#break
-			elif inkey == K_MINUS:
-				current_string.append("_")
-			elif inkey <= 127:
-				current_string.append(chr(inkey))
-			display_box(self.screen, str.join("", current_string) + "_")
-		'''
 						
+						 
 		# 檢查 Queue
 		# 有的話取一個來處理
 		if not message_queue.empty():
 			job = message_queue.get()
-			
+			#print("black:{},white:{}".format(self.chessboard.black,self.chessboard.white))
 			if job[0] == ord('0'):
 				self.piece = job[1:].decode("utf-8")
 				self.status = 'wait_game'
@@ -330,13 +468,8 @@ class GomokuClient:
 					if self.chessboard.set_piece(r, c):
 						if self.chessboard.get_three_count(r, c):
 							self.flag = 1
-							#print("True")
-							# 傳送下子不換邊
-							#send_queue.put('4{0},{1}'.format(r, c))
-						
+							print("take piece!!!!")
 						else:
-							#send_queue.put('3{0},{1}'.format(r, c))
-						#轉換方
 							self.chessboard.turn_piece_color()
 			
 			elif job[0]== ord('4'):
@@ -346,37 +479,33 @@ class GomokuClient:
 					r = int(r)
 					c = int(c)
 					
-					self.chessboard.take_other_piece(r, c)
+					self.chessboard.take_other_piece(r, c, self.piece)
 					self.chessboard.turn_piece_color()
 					self.flag = 0
 						
-
-	'''		
-	def take_piece_rc(self):
-		print ("ffffffffff")
-		for c in pygame.event.get():
-			print (c)
-			if c.type == pygame.QUIT:
-				self.going = False
-			elif c.type == pygame.MOUSEBUTTONDOWN:
-				self.takehandle_MOUSEBUTTONDOWN(e)
-	
-	def takehandle_MOUSEBUTTONDOWN(self, e):
-		# 判斷可不可以提子
-		if not self.chessboard.can_get_piece(r, c):
-			return
-	'''
+			elif job[0]== ord('5'):
+				if self.status == 'gaming':
+					pos_msg = job[1:].decode("utf-8")
+					r, c = pos_msg.split(',')
+					r = int(r)
+					c = int(c)
+					
+					self.chessboard.choose_piece(r, c)
+					#self.chessboard.turn_piece_color()
+					self.flag = 0
+			self.chessboard.is_win()
+							
 	
 	def draw(self):
 		self.screen.fill((255, 255, 255))
 		# self.screen.blit(self.font.render("FPS: {0:.2F}".format(self.clock.get_fps()), True, (0, 0, 0)), (10, 10))
 		
 		if self.piece == 'b':
-			self.screen.blit(self.font.render('Black', True, (0, 0, 0)), (100, 10))
+			self.screen.blit(self.font.render('Black', True, (0, 0, 100)), (125, 675))
 		elif self.piece == 'w':
-			self.screen.blit(self.font.render('White', True, (0, 0, 0)), (100, 10))
+			self.screen.blit(self.font.render('White', True, (0, 0, 100)), (125, 675))
 		else:
-			self.screen.blit(self.font.render(self.piece, True, (0, 0, 0)), (100, 10))
+			self.screen.blit(self.font.render(self.piece, True, (0, 0, 100)), (125, 675))
 
 		self.chessboard.draw(self.screen)
 		if self.chessboard.game_over:
@@ -394,70 +523,48 @@ class GomokuClient:
 		elif self.status == 'game_over':
 			status_text = 'game_over'
 		
-		self.screen.blit(self.font.render(status_text, True, (0, 0, 0)), (400, 10))
-		
-		fontobject = pygame.font.SysFont('Microsoft JhengHei', 20, False, False)
-		
-		pygame.draw.rect(self.screen, (255, 255, 255), (30, 700, 640, 30), 0)
-		pygame.draw.rect(self.screen, (128, 128, 128), (30, 700, 640, 30), 1)
-		pygame.draw.rect(self.screen, (128, 128, 128), (30, 700, 45, 30), 0)
-		self.screen.blit(fontobject.render("Send", 1, (255,255,255)), (35, 710))
-		
-		self.screen.blit(fontobject.render(self.word.encode('utf-8'), 1, (0, 0, 0)), (90, 710))
+		self.screen.blit(self.font.render(status_text, True, (0, 0, 100)), (400, 675))
 
-		self.screen.blit(fontobject.render(output_word, 1, (0, 0, 0)), (90, 740))
+		fontobject = pygame.font.SysFont('Arial', 20, False, False)
+		pygame.draw.rect(self.screen, (255, 255, 255), (30, 745, 640, 30), 0)
+		pygame.draw.rect(self.screen, (128, 128, 128), (30, 745, 640, 30), 1)
+		pygame.draw.rect(self.screen, (128, 128, 128), (30, 745, 65, 30), 0)
+		self.screen.blit(fontobject.render("Send", 1, (255,255,255)), (35, 750))
+		
+		self.screen.blit(fontobject.render(self.word.encode('utf-8'), 1, (0, 0, 0)), (100, 750))
+
+		wordfont = pygame.font.SysFont('Arial', 25, False, False)
+		self.screen.blit(wordfont.render(output_word, 1, (0, 0, 0)), (70, 715))
+
 		pygame.display.update()
 
-
-	def handle_MOUSEBUTTONDOWN(self, e):
+	def handle_MOUSEBUTTONDOWN(self, e, flag):
 		# 計算座標，檢查是否可以下子，在送出封包
 		if self.status == 'gaming':
 			if not self.chessboard.is_in_area(e.pos[0], e.pos[1]):
 				return
 			if not self.chessboard.is_my_turn(self.piece):
 				return
-			print(e.pos[0],e.pos[1])
+			#print(e.pos[0],e.pos[1])
 			r, c = self.chessboard.get_r_c(e.pos[0], e.pos[1])
 			
 			# 判斷可不可以下子
 			if not self.chessboard.can_set_piece(r, c):
 				return
-
+			if flag == 0:
+				if not self.chessboard.can_set_piece(r, c):
+					return
+					# 送出封包
+					send_queue.put('3{0},{1}'.format(r, c))
+					
+				else:
+					if not self.chessboard.can_get_piece(r, c, self.piece):
+						return
+					# 送出封包
+					send_queue.put('4{0},{1}'.format(r, c))
+			self.chessboard.printboard()
 			# 送出封包
 			# send_queue.put('3{0},{1}'.format(r, c))
-
-def get_key():
-	while 1:
-		event = pygame.event.poll()
-		if event.type == KEYDOWN:
-			return event.key
-		else:
-			pass
-
-def display_box(screen, message):
-	fontobject = pygame.font.SysFont('Microsoft JhengHei', 20, False, False)
-	if len(message) != 0:
-		screen.blit(fontobject.render(message, 1, (0,0,0)), (80, 710))
-		pygame.display.flip()
-
-def ask(screen, question):
-  #"ask(screen, question) -> answer"
-	pygame.font.init()
-	current_string = []
-	
-	display_box(screen, str.join("", current_string) + "_")
-	while 1:
-		inkey = get_key()
-		if inkey == K_BACKSPACE:
-			current_string = current_string[0:-1]
-		elif inkey == K_RETURN:
-			break
-		elif inkey == K_MINUS:
-			current_string.append("_")
-		elif inkey <= 127:
-			current_string.append(chr(inkey))
-		display_box(screen, str.join("", current_string) + "_")
-	return str.join("", current_string)
 
 if __name__ == '__main__':
 	print(pygame.QUIT)
