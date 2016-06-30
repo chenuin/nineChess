@@ -6,10 +6,13 @@ import sys,os
 import string
 import time
 from pygame.locals import *
+from tkinter import *
+import tkinter as tk
 
 message_queue = Queue()
 send_queue = Queue()
 output_word = ''
+userName = []
 
 class Chessboard:
 	def __init__(self):
@@ -398,7 +401,7 @@ class GomokuClient:
 		os._exit(0)
 			
 	def update(self):
-		
+		global userName
 		for e in pygame.event.get():
 			if e.type == pygame.QUIT:
 				self.going = False
@@ -449,7 +452,8 @@ class GomokuClient:
 			elif e.type == KEYUP:
 				
 				if e.key == 13:
-					self.word = self.word[:]
+					print (self.piece)
+					self.word = userName[0] + ": " + self.word
 					print (self.word)
 					self.word = '9'+self.word
 					self.csocket.send(str.encode(self.word))
@@ -617,6 +621,7 @@ class GomokuClient:
 
 class View(tk.Frame):
 	def __init__(self, *args, **kwargs):
+		global userName
 		tk.Frame.__init__(self, *args, **kwargs)
 
 		self.image = tk.PhotoImage(file="bg.gif")
@@ -632,6 +637,7 @@ class View(tk.Frame):
 		
 		def hello():
 			print(e1.get())
+			userName.append(e1.get())
 
 		ebutton = tk.Button(self, text="Send", fg="blue", command=hello)
 		ebutton.pack(side="top")
