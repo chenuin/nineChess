@@ -176,7 +176,15 @@ def main():
 					players[1].send(job)
 					board.choose_piece(r, c)
 					board.printboard()
-			
+					
+		elif job[0] == ord('w'):
+			players[0].send('l'.encode())
+			players[1].send('w'.encode())
+		
+		elif job[0] == ord('b'):
+			players[0].send('w'.encode())
+			players[1].send('l'.encode())
+		
 if __name__ == '__main__':
 	main()
 
