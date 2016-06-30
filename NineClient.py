@@ -4,13 +4,12 @@ import threading
 from queue import Queue
 import sys,os
 import string
+import time
 from pygame.locals import *
-import tkinter as tk
-from tkinter import *
+
 message_queue = Queue()
 send_queue = Queue()
 output_word = ''
-userName = ''
 
 class Chessboard:
 	def __init__(self):
@@ -125,13 +124,17 @@ class Chessboard:
 		win_b = True
 		win_w = True
 		if move_b ==0  or num_b<=2:
-			print("black lose")
-			win_b = False
+			if self.black >=9:
+				print("black lose")
+				win_b = False
 		if move_w ==0 or num_w<=2:
-			print("white lose")
-			win_w =False
-
+			if self.white >=9:
+				print("white lose")
+				win_w =False
 		
+		#return win_b
+		#print ("b{}, w{}".format(win_b,win_w))
+		return (win_b, win_w )
 		
 	def set_piece(self, r, c):
 
@@ -353,7 +356,8 @@ class GomokuClient:
 		self.flag_move = 0
 		self.piece = 'wait'
 		self.word = ''
-		
+		self.k = 0
+		self.result = False
 		self.rp = -1
 		self.rc = -1
 
@@ -380,6 +384,8 @@ class GomokuClient:
 			self.update()
 			self.draw()
 			self.clock.tick(60)
+		if self.result:
+			time.sleep(10)
 		pygame.display.quit() 
 		pygame.quit()
 		
@@ -443,7 +449,7 @@ class GomokuClient:
 			elif e.type == KEYUP:
 				
 				if e.key == 13:
-					self.word = userName + ': ' + self.word
+					self.word = self.word[:]
 					print (self.word)
 					self.word = '9'+self.word
 					self.csocket.send(str.encode(self.word))
@@ -499,10 +505,31 @@ class GomokuClient:
 					self.chessboard.choose_piece(r, c)
 					#self.chessboard.turn_piece_color()
 					self.flag = 0
+			'''
+			elif job[0]==ord('w'):
+				lastword = "WIN"
+				self.draw_win(lastword)
+			elif job[0]==ord('l'):
+				lastword = "LOSE"
+				self.draw_win(lastword)
+			'''
 			self.chessboard.printboard()
-			self.chessboard.is_win()
-							
+			if self.flag_move==0 and self.flag==0:
+				winb, winw = self.chessboard.is_win()
+			'''
+			if winb == False and self.k==0:
+				self.k=0
+				send_queue.put('w{0}'.format(self.k))
+			elif winw == False:
+				self.k=0
+				send_queue.put('b{0}'.format(self.k))
+			'''
 	
+	def draw_win(self, word):
+		self.screen.fill((255, 255, 255))
+		self.screen.blit(self.font.render(word, True, (0, 0, 100)), (400, 400))
+
+
 	def draw(self):
 		self.screen.fill((255, 255, 255))
 		# self.screen.blit(self.font.render("FPS: {0:.2F}".format(self.clock.get_fps()), True, (0, 0, 0)), (10, 10))
@@ -515,11 +542,25 @@ class GomokuClient:
 			self.screen.blit(self.font.render(self.piece, True, (0, 0, 100)), (125, 675))
 
 		self.chessboard.draw(self.screen)
+		winb, winw = self.chessboard.is_win()
+		'''
 		if self.chessboard.game_over:
 			self.screen.blit(
 				self.font.render("{0} Win".format("Black" if self.chessboard.winner == 'b' else "White"), True,
 								 (0, 0, 0)), (200, 10))
-
+		'''
+		if winb == False:
+			self.screen.blit(
+				self.font.render("{0} Win".format("White"), True,
+								 (255, 0, 0)), (350, 350))
+			self.going = False
+			self.result = True
+		elif winw == False:
+			self.screen.blit(
+				self.font.render("{0} Win".format("Black"), True,
+								 (255, 0, 0)), (350, 350))
+			self.going = False			 
+			self.result = True					 
 		status_text = self.status
 		if self.status == 'wait_connect':
 			status_text = 'wait_connect...'
@@ -573,9 +614,6 @@ class GomokuClient:
 			# 送出封包
 			# send_queue.put('3{0},{1}'.format(r, c))
 
-def startGame():
-    print ('game start')
-    exit()
 
 class View(tk.Frame):
 	def __init__(self, *args, **kwargs):
@@ -599,8 +637,6 @@ class View(tk.Frame):
 		ebutton.pack(side="top")
 		
 		e1.pack(side="top")
-		
-
 
 if __name__ == '__main__':
 	root = tk.Tk()
@@ -612,7 +648,7 @@ if __name__ == '__main__':
 	sbutton.pack()
 
 	root.mainloop()
-	
+
 	print(pygame.QUIT)
 	game = GomokuClient()
 	game.loop()
