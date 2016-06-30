@@ -5,10 +5,12 @@ from queue import Queue
 import sys,os
 import string
 from pygame.locals import *
-
+import tkinter as tk
+from tkinter import *
 message_queue = Queue()
 send_queue = Queue()
 output_word = ''
+userName = ''
 
 class Chessboard:
 	def __init__(self):
@@ -47,7 +49,6 @@ class Chessboard:
 	def can_move(self,my_piece):
 		move=0
 		number = 0
-		self.printboard()
 		for i in range(self.grid_round):
 			for j in range(self.grid_count):
 				#now = move
@@ -179,10 +180,10 @@ class Chessboard:
 	def num_of_piece(self):
 		#print("num:b{},w{}".format(self.black,self.white))
 		if self.piece == 'b':
-			if self.black >= 6:
+			if self.black >= 9:
 				return False
 		elif self.piece == 'w':
-			if self.white >= 6:
+			if self.white >= 9:
 				return False
 		return True
 			
@@ -326,8 +327,8 @@ def receive_message(server_socket):
 		message_queue.put(message)
 		tmp = message.decode('utf-8', "replace")
 		if tmp[0] == '9':
-			output_word = message
-			print(output_word)
+			output_word = message[1:]
+			print(output_word[1:])
 
 def send_message(server_socket):
 	while True:
@@ -339,6 +340,10 @@ class GomokuClient:
 	def __init__(self):
 		pygame.init()
 
+		pygame.mixer.init()
+		track = pygame.mixer.music.load("123.mp3")
+		pygame.mixer.music.play()
+		
 		self.screen = pygame.display.set_mode((700, 800))
 		pygame.display.set_caption("雙人連線九子棋")
 		self.clock = pygame.time.Clock()
@@ -434,12 +439,13 @@ class GomokuClient:
 							else:
 								print ("can.t move")
 								self.flag_move = 0
+								
 			elif e.type == KEYUP:
 				
 				if e.key == 13:
-					self.word = self.word[:]
+					self.word = userName + ': ' + self.word
 					print (self.word)
-					self.word = "9"+self.word
+					self.word = '9'+self.word
 					self.csocket.send(str.encode(self.word))
 					self.word = ''
 				else:
@@ -468,7 +474,6 @@ class GomokuClient:
 					if self.chessboard.set_piece(r, c):
 						if self.chessboard.get_three_count(r, c):
 							self.flag = 1
-							print("take piece!!!!")
 						else:
 							self.chessboard.turn_piece_color()
 			
@@ -484,6 +489,7 @@ class GomokuClient:
 					self.flag = 0
 						
 			elif job[0]== ord('5'):
+				#self.chessboard.reset_color()
 				if self.status == 'gaming':
 					pos_msg = job[1:].decode("utf-8")
 					r, c = pos_msg.split(',')
@@ -493,6 +499,7 @@ class GomokuClient:
 					self.chessboard.choose_piece(r, c)
 					#self.chessboard.turn_piece_color()
 					self.flag = 0
+			self.chessboard.printboard()
 			self.chessboard.is_win()
 							
 	
@@ -566,7 +573,46 @@ class GomokuClient:
 			# 送出封包
 			# send_queue.put('3{0},{1}'.format(r, c))
 
+def startGame():
+    print ('game start')
+    exit()
+
+class View(tk.Frame):
+	def __init__(self, *args, **kwargs):
+		tk.Frame.__init__(self, *args, **kwargs)
+
+		self.image = tk.PhotoImage(file="bg.gif")
+		#b = tk.Button(self, text="Hello, world", image=self.image, compound="center")
+		#b.pack(side="top")
+
+		explanation = "九子棋"
+
+		w1 = tk.Label(self, compound = CENTER, text=explanation, image=self.image).pack(side="top")
+		
+		w1 = tk.Label(self, justify=LEFT, padx = 10,  text="Name").pack()
+		e1 = Entry(self)
+		
+		def hello():
+			print(e1.get())
+
+		ebutton = tk.Button(self, text="Send", fg="blue", command=hello)
+		ebutton.pack(side="top")
+		
+		e1.pack(side="top")
+		
+
+
 if __name__ == '__main__':
+	root = tk.Tk()
+	view = View(root)
+	root.title("Game Center")
+	view.pack(side="right", fill="both", expand=True)
+
+	sbutton = tk.Button(view, text="Start", fg="green", command=root.quit)
+	sbutton.pack()
+
+	root.mainloop()
+	
 	print(pygame.QUIT)
 	game = GomokuClient()
 	game.loop()
