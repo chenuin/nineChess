@@ -54,7 +54,7 @@ class Chessboard:
 		for i in range(self.grid_round):
 			for j in range(self.grid_count):
 				#now = move
-				if self.grid[i][j] == my_piece:
+				if self.grid[i][j] == my_piece or self.grid[i][j]=='r':
 					number = number + 1
 				else:
 					continue
@@ -106,19 +106,6 @@ class Chessboard:
 		
 		
 		
-		if self.grid[r][(c+1)%8]=='.' or self.grid[r][(c+7)%8]=='.':
-				return True
-		if c%2==1:
-			if r==0:
-				if self.grid[r+1][c]=='.' :	
-					return True
-			if r==1:
-				if self.grid[r+1][c]=='.'  or self.grid[r-1][c]=='.' :	
-					return True
-			if r==2:
-				if self.grid[r-1][c]=='.' :	
-					return True
-		return False
 		
 	def is_win(self):
 		move_b,num_b = self.can_move('b')
@@ -136,7 +123,7 @@ class Chessboard:
 				win_w =False
 		
 		#return win_b
-		#print ("b{}, w{}".format(win_b,win_w))
+		print ("b{}, w{}".format(win_b,win_w))
 		return (win_b, win_w )
 		
 	def set_piece(self, r, c):
@@ -363,6 +350,8 @@ class GomokuClient:
 		self.result = False
 		self.rp = -1
 		self.rc = -1
+		self.winb = True
+		self.winw = True
 
 		self.chessboard = ChessboardClient()
 
@@ -509,17 +498,11 @@ class GomokuClient:
 					self.chessboard.choose_piece(r, c)
 					#self.chessboard.turn_piece_color()
 					self.flag = 0
-			'''
-			elif job[0]==ord('w'):
-				lastword = "WIN"
-				self.draw_win(lastword)
-			elif job[0]==ord('l'):
-				lastword = "LOSE"
-				self.draw_win(lastword)
-			'''
+					
+			if self.flag_move==0 and self.flag==0:		
+				self.winb, self.winw = self.chessboard.is_win()
+
 			self.chessboard.printboard()
-			if self.flag_move==0 and self.flag==0:
-				winb, winw = self.chessboard.is_win()
 			'''
 			if winb == False and self.k==0:
 				self.k=0
@@ -546,23 +529,22 @@ class GomokuClient:
 			self.screen.blit(self.font.render(self.piece, True, (0, 0, 100)), (125, 675))
 
 		self.chessboard.draw(self.screen)
-		winb, winw = self.chessboard.is_win()
 		'''
 		if self.chessboard.game_over:
 			self.screen.blit(
 				self.font.render("{0} Win".format("Black" if self.chessboard.winner == 'b' else "White"), True,
 								 (0, 0, 0)), (200, 10))
 		'''
-		if winb == False:
+		if self.winb== False:
 			self.screen.blit(
 				self.font.render("{0} Win".format("White"), True,
-								 (255, 0, 0)), (350, 350))
+								 (255, 0, 0)), (250, 350))
 			self.going = False
 			self.result = True
-		elif winw == False:
+		elif self.winw == False:
 			self.screen.blit(
 				self.font.render("{0} Win".format("Black"), True,
-								 (255, 0, 0)), (350, 350))
+								 (255, 0, 0)), (250, 350))
 			self.going = False			 
 			self.result = True					 
 		status_text = self.status
